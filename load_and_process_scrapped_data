@@ -1,0 +1,164 @@
+import dill
+from bs4 import BeautifulSoup
+import re
+
+# =============================================================================
+# 1. load data
+# =============================================================================
+with open(r'C:\Users\natal\Documents\Python Scripts\data_science_utils\NLP\web_scraper_twitter\results\scraped_tweets.pkl', 'rb') as f:
+    tweets = dill.load(f)
+
+# =============================================================================
+# 1. Remove html tags
+# =============================================================================
+tweets_df = tweets.copy(deep=True)
+
+
+def remove_html_tags(text):
+    """
+    Remove html tags
+
+    Args:
+        text: input text to clear
+
+    Returns:
+
+    """
+    soup = BeautifulSoup(text, 'html.parser')
+    return soup.get_text()
+
+tweets_df["tweet_cleaned"] = tweets_df["tweet"].apply(lambda x: remove_html_tags(x))
+
+# =============================================================================
+# 2. Remove intervals in the begin and end of a string
+# =============================================================================
+
+def clean_text(text):
+    return text.strip()
+
+tweets_df["tweet_cleaned"] = tweets_df["tweet_cleaned"].apply(lambda x: clean_text(x))
+
+# =============================================================================
+# 3. Remove URLs
+# =============================================================================
+from urlextract import URLExtract
+
+
+def remove_urls(text):
+    """
+    Replace the URLS from the text. With space/interval is recommended
+
+    Args:
+        text:
+
+    Returns:
+
+    """
+    extractor = URLExtract() # create an URLExtract object which will be used to extract URLs from the text
+    urls = extractor.find_urls(text)
+
+    for url in urls:
+        text = text.replace(url, " ")
+
+    return text
+
+
+tweets_df["tweet_cleaned"] = tweets_df["tweet_cleaned"].apply(lambda x: remove_urls(x))
+
+
+# =============================================================================
+# 4. Expand contractions
+# =============================================================================
+import contractions
+
+def fix_contractions(text):
+    """
+    Fixes contractions such as `you're` to you `are`
+
+    Args:
+        text:
+
+    Returns:
+
+    """
+    return contractions.fix(text)
+
+
+tweets_df["tweet_cleaned"] = tweets_df["tweet_cleaned"].apply(lambda x: fix_contractions(x))
+
+
+# =============================================================================
+# 5. Extract emoticons/emoji
+# =============================================================================
+import emot
+
+# VADER takes into account the emoticons
+emot_obj = emot.core.emot()  # Create an "emot" object
+
+def extract_emoji(text):
+    """
+    NB! - be careful sometimes it may yield funny results
+
+    Args:
+        text:
+
+    Returns: text description of the emoji
+
+    """
+    return emot_obj.emoji(text)  # search for emoji
+
+
+def extract_emoticons(text):
+    """
+    NB! - be careful sometimes it may yield funny results
+    Args:
+        text:
+
+    Returns: text description of the emoticons
+
+    """
+    return emot_obj.emoticons(text)  # search for emoticons
+
+
+import emoji
+
+def extract_emojis(s):
+  return ''.join(c for c in s if c in emoji.UNICODE_EMOJI['en'])
+
+tweets_df["emojis"] = tweets_df["tweet_cleaned"].apply(lambda x: extract_emoji(x))
+tweets_df["emoticons"] = tweets_df["tweet_cleaned"].apply(lambda x: extract_emoticons(x))
+
+#TODO: Extract the emoji itself in a column
+
+# =============================================================================
+#  6. Apply tokenization
+# =============================================================================
+
+def word_tokenization(text):
+    """
+    Word tokenization - by default splits by intervals - punctuation is retained
+
+    Returns:
+
+    """
+    return text.split()
+
+
+def sentence_tokenization(text):
+    """
+    Word tokenization - by default splits by intervals - punctuation is retained
+
+    Returns:
+
+    """
+    sentences = re.compile('[.!?] ').split(clean_text)
+    return text.split()
+
+# Sentence tokenization
+ # Python library for working with regex
+sentences = re.compile('[.!?] ').split(clean_text)
+# with compile() we create a regex object - we create our "pattern". Then, we apply a split() method inherent to "regex" objects (different from the built-in split()).
+# https://docs.python.org/3/library/re.html#re-objects
+
+
+import torch
